@@ -3,7 +3,7 @@ import { JSDOM } from "jsdom";
 import fs from "fs";
 import path from "path";
 
-const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1415280563518050314/oAtN8xs9rqrLp4csUy0_qB4RaaG59VPJb9MH77ckPQVCuwoaoOkNfl6kortJ_64Bn_lQ";
+const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1415287006812045372/rUVOURbbTWnptW5Tie4J0FdTSN7xIOqwEzOnUUEjvW-CdQj4fXNPXfuml5JdIVtdLb3G";
 const STATUS_URL = "https://www.playlostark.com/en-gb/support/server-status";
 const DATA_FILE = "webhook_data.json";
 
@@ -35,7 +35,7 @@ function readWebhookData() {
   } catch (error) {
     console.log("Lỗi khi đọc file dữ liệu:", error.message);
   }
-  return { webhookSent: false, webhookTime: null };
+  return { webhookSent: false, webhookTime: null, initialStatus: null };
 }
 
 // Hàm ghi dữ liệu vào file
@@ -77,7 +77,9 @@ async function sendWebhook(isManual = false) {
       console.log("Webhook đã gửi thành công! Status:", response.status);
       
       // Lưu trạng thái đã gửi vào file
+      const existingData = readWebhookData();
       writeWebhookData({
+        ...existingData,
         webhookSent: true,
         webhookTime: new Date().toISOString()
       });
@@ -163,13 +165,20 @@ async function checkAndSendWebhook() {
   if (isWebhookDataExpired()) {
     writeWebhookData({
       webhookSent: false,
-      webhookTime: null
+      webhookTime: null,
+      initialStatus: null
     });
   }
   
-  // Kiểm tra xem đã gửi webhook trong ngày chưa
+  // Đọc dữ liệu từ file
   const data = readWebhookData();
   const hasSentWebhook = data.webhookSent === true;
+  
+  // Khôi phục initialStatus từ file nếu có
+  if (initialStatus === null && data.initialStatus) {
+    initialStatus = data.initialStatus;
+    console.log("Khôi phục trạng thái ban đầu từ file:", initialStatus);
+  }
   
   // Lấy trạng thái server hiện tại
   const currentStatus = await getServerStatus();
@@ -185,6 +194,12 @@ async function checkAndSendWebhook() {
   if (initialStatus === null) {
     initialStatus = currentStatus;
     console.log("Trạng thái ban đầu:", initialStatus);
+    
+    // Lưu vào file
+    writeWebhookData({
+      ...data,
+      initialStatus: initialStatus
+    });
     
     // Nếu ban đầu đã online thì không gửi webhook
     if (initialStatus === "Brelshaza is online") {
@@ -203,6 +218,18 @@ async function checkAndSendWebhook() {
       !isProcessing) {
     console.log("Phát hiện server chuyển từ offline sang online!");
     await sendWebhook(false);
+  }
+  
+  // Reset initialStatus nếu server hiện tại offline (để chuẩn bị cho lần online tiếp theo)
+  if (currentStatus !== "Brelshaza is online" && initialStatus === "Brelshaza is online") {
+    console.log("Server chuyển từ online sang offline, reset trạng thái ban đầu");
+    initialStatus = currentStatus;
+    
+    // Cập nhật vào file (nhưng không reset webhook đã gửi)
+    writeWebhookData({
+      ...data,
+      initialStatus: initialStatus
+    });
   }
 }
 
@@ -237,7 +264,8 @@ async function startMonitoring() {
 function resetWebhookData() {
   writeWebhookData({
     webhookSent: false,
-    webhookTime: null
+    webhookTime: null,
+    initialStatus: null
   });
   initialStatus = null;
   console.log("Đã reset dữ liệu webhook");
