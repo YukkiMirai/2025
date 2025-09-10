@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 
-const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/NEW_ID/NEW_TOKEN";
+const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1415280563518050314/oAtN8xs9rqrLp4csUy0_qB4RaaG59VPJb9MH77ckPQVCuwoaoOkNfl6kortJ_64Bn_lQ";
 
 const payload = {
   content: "Test message ✅"
