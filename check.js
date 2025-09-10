@@ -18,16 +18,46 @@ async function sendWebhook(message) {
     ],
   };
 
-  const res = await fetch(DISCORD_WEBHOOK, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  try {
+    console.log("Đang gửi webhook...");
+    console.log("Payload:", JSON.stringify(payload, null, 2));
+    
+    const res = await fetch(DISCORD_WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-  if (!res.ok) {
-    console.error("Lỗi gửi webhook:", res.statusText);
-  } else {
-    console.log("✅ Đã gửi webhook thành công!");
+    console.log("Response status:", res.status);
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Lỗi gửi webhook:", res.status, res.statusText);
+      console.error("Chi tiết lỗi:", errorText);
+      
+      // Thử gửi message đơn giản hơn
+      const simplePayload = {
+        content: message
+      };
+      
+      console.log("Thử gửi message đơn giản...");
+      const simpleRes = await fetch(DISCORD_WEBHOOK, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(simplePayload),
+      });
+      
+      if (simpleRes.ok) {
+        console.log("✅ Đã gửi webhook đơn giản thành công!");
+      } else {
+        const simpleError = await simpleRes.text();
+        console.error("Lỗi gửi webhook đơn giản:", simpleRes.status, simpleError);
+      }
+    } else {
+      console.log("✅ Đã gửi webhook thành công!");
+    }
+  } catch (error) {
+    console.error("Lỗi kết nối:", error.message);
   }
 }
 
