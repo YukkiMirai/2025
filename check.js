@@ -1,5 +1,5 @@
 import fetch from "node-fetch";
-import * as cheerio from "cheerio";
+import { JSDOM } from "jsdom";
 import fs from "fs";
 import path from "path";
 
@@ -113,15 +113,18 @@ async function getServerStatus() {
     }
 
     const html = await response.text();
-    const $ = cheerio.load(html);
+    const dom = new JSDOM(html);
+    const document = dom.window.document;
     
     // Tìm element chứa thông tin Brelshaza
     let serverStatus = null;
     
     // Thử nhiều cách tìm kiếm
-    $('*').each(function() {
-      const text = $(this).text();
-      const ariaLabel = $(this).attr('aria-label');
+    const allElements = document.querySelectorAll('*');
+    
+    for (const element of allElements) {
+      const text = element.textContent;
+      const ariaLabel = element.getAttribute('aria-label');
       
       if (text && text.includes('Brelshaza')) {
         if (text.includes('online') || text.includes('Online')) {
@@ -134,7 +137,7 @@ async function getServerStatus() {
       if (ariaLabel && ariaLabel.includes('Brelshaza')) {
         serverStatus = ariaLabel;
       }
-    });
+    }
 
     // Nếu không tìm thấy bằng cách trên, tìm trong toàn bộ HTML
     if (!serverStatus) {
