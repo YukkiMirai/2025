@@ -1,7 +1,7 @@
 import fetch from "node-fetch";
 
 // URL webhook Discord của bạn
-const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/xxxxx/xxxxx";
+const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1415262191996768307/Rdfm_1vHjqemMDVvObRcDTmNyF_3RRdhGI82EJJOTuExBFjQlqLLhgB3ZDRF-SgvGIr3";
 
 // Hàm gửi webhook
 async function sendWebhook(message) {
