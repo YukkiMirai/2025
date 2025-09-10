@@ -1,0 +1,162 @@
+// Logic mới: chỉ gửi webhook khi trạng thái thay đổi từ offline sang online
+  var refreshInterval; // để lưu interval
+  var isProcessing = false; // flag để tránh gửi đồng thời
+  var initialStatus = null; // lưu trạng thái ban đầu
+
+  const url = "https://discord.com/api/webhooks/1415262191996768307/Rdfm_1vHjqemMDVvObRcDTmNyF_3RRdhGI82EJJOTuExBFjQlqLLhgB3ZDRF-SgvGIr3";
+
+  const payload = {
+    "username": "Đội trưởng chó!",
+    "avatar_url": "https://i.imgur.com/AfFp7pu.png",
+    "content": "Thông báo! <@&1141669486697644032>",
+    "embeds": [
+      {
+        "title": "Thông báo",
+        "description": "Brelshaza is online 🎉",
+        "color": 15258703
+      }
+    ]
+  };
+
+  // Hàm kiểm tra localStorage có hết hạn không (1 ngày)
+  function isWebhookDataExpired() {
+    var webhookTime = localStorage.getItem('brelshaza_webhook_time');
+    if (!webhookTime) return true;
+    
+    var savedTime = new Date(webhookTime);
+    var currentTime = new Date();
+    var diffHours = (currentTime - savedTime) / (1000 * 60 * 60);
+    
+    return diffHours >= 24; // 24 giờ = 1 ngày
+  }
+
+  // Hàm gửi webhook
+  function sendWebhook(isManual = false) {
+    if (isProcessing) return;
+    
+    isProcessing = true;
+    console.log(isManual ? "Gửi webhook thủ công..." : "Gửi webhook tự động...");
+    
+    // Lưu trạng thái đã gửi vào localStorage
+    localStorage.setItem('brelshaza_webhook_sent', 'true');
+    localStorage.setItem('brelshaza_webhook_time', new Date().toISOString());
+
+    $.ajax({
+      url: url,
+      method: "POST",
+      contentType: "application/json",
+      data: JSON.stringify(payload),
+      timeout: 10000,
+      success: function (res) {
+        console.log("Webhook đã gửi thành công:", res);
+        isProcessing = false;
+      },
+      error: function (err) {
+        console.error("Lỗi khi gửi webhook:", err);
+        // Nếu lỗi thì xóa flag để có thể thử lại
+        localStorage.removeItem('brelshaza_webhook_sent');
+        localStorage.removeItem('brelshaza_webhook_time');
+        isProcessing = false;
+      }
+    });
+  }
+
+  // Hàm kiểm tra và gửi webhook
+  function checkAndSendWebhook() {
+    // Kiểm tra localStorage có hết hạn không
+    if (isWebhookDataExpired()) {
+      localStorage.removeItem('brelshaza_webhook_sent');
+      localStorage.removeItem('brelshaza_webhook_time');
+    }
+    
+    // Kiểm tra xem đã gửi webhook trong ngày chưa
+    var hasSentWebhook = localStorage.getItem('brelshaza_webhook_sent') === 'true';
+    
+    // tìm phần tử có class và aria-label chứa 'Brelshaza'
+    var $el = $(".ags-ServerStatus-content-responses-response-server-name[aria-label*='Brelshaza']");
+
+    if ($el.length) {
+      var currentStatus = $el.attr("aria-label");
+      document.title = currentStatus;
+      
+      // Nếu chưa có initial status thì lưu lại
+      if (initialStatus === null) {
+        initialStatus = currentStatus;
+        console.log("Trạng thái ban đầu:", initialStatus);
+        
+        // Nếu ban đầu đã online thì không gửi webhook
+        if (initialStatus === "Brelshaza is online") {
+          console.log("Server đã online từ đầu, không gửi webhook");
+          return;
+        }
+      }
+      
+      // Chỉ gửi webhook khi:
+      // 1. Trạng thái thay đổi từ offline sang online
+      // 2. Chưa gửi webhook trong ngày
+      // 3. Không đang xử lý
+      if (currentStatus === "Brelshaza is online" && 
+          initialStatus !== "Brelshaza is online" && 
+          !hasSentWebhook && 
+          !isProcessing) {
+        console.log("Phát hiện server chuyển từ offline sang online!");
+        sendWebhook(false);
+      }
+
+    } else {
+      document.title = "Không tìm thấy";
+    }
+  }
+
+  $(document).ready(function () {
+    // Kiểm tra ngay khi trang load
+    checkAndSendWebhook();
+
+    // Thêm sự kiện click vào div để gửi webhook thủ công
+    $(document).on('click', '.ags-ServerStatus-content-responses-response-server-name[aria-label*="Brelshaza"]', function() {
+      var currentStatus = $(this).attr("aria-label");
+      if (currentStatus === "Brelshaza is online") {
+        console.log("Click thủ công để gửi webhook");
+        sendWebhook(true);
+      } else {
+        console.log("Server chưa online, không thể gửi webhook");
+      }
+    });
+
+    // Auto refresh trang sau mỗi 5 giây
+    refreshInterval = setInterval(function () {
+      // Chỉ reload nếu chưa gửi webhook hoặc webhook đã hết hạn
+      var hasSentWebhook = localStorage.getItem('brelshaza_webhook_sent') === 'true';
+      var isExpired = isWebhookDataExpired();
+      
+      if (!isProcessing && (!hasSentWebhook || isExpired)) {
+        location.reload();
+      }
+    }, 5000);
+
+    // Thêm nút reset để test (tùy chọn)
+    $('body').append('<button onclick="localStorage.removeItem(\'brelshaza_webhook_sent\'); localStorage.removeItem(\'brelshaza_webhook_time\'); location.reload();" style="position:fixed;top:10px;right:10px;z-index:9999;background:#ff4444;color:white;border:none;padding:5px 10px;border-radius:3px;cursor:pointer;">Reset Webhook</button>');
+    
+    // Thêm nút gửi webhook thủ công
+    $('body').append('<button id="sendWebhookBtn" style="position:fixed;top:10px;right:130px;z-index:9999;background:#00aa00;color:white;border:none;padding:5px 10px;border-radius:3px;cursor:pointer;">Gửi Webhook</button>');
+    
+    // Sự kiện click nút gửi webhook
+    $('#sendWebhookBtn').click(function() {
+      var $el = $(".ags-ServerStatus-content-responses-response-server-name[aria-label*='Brelshaza']");
+      if ($el.length) {
+        var currentStatus = $el.attr("aria-label");
+        if (currentStatus === "Brelshaza is online") {
+          console.log("Gửi webhook bằng nút thủ công");
+          sendWebhook(true);
+          $(this).text('Đã gửi!').css('background', '#888888').prop('disabled', true);
+          setTimeout(() => {
+            $(this).text('Gửi Webhook').css('background', '#00aa00').prop('disabled', false);
+          }, 3000);
+        } else {
+          alert("Server chưa online, không thể gửi webhook!");
+        }
+      } else {
+        alert("Không tìm thấy thông tin server!");
+      }
+    });
+  });
