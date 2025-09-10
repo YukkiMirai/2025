@@ -206,7 +206,14 @@ async function checkAndSendWebhook() {
   }
 }
 
-// Hàm chạy kiểm tra định kỳ
+// Hàm chạy kiểm tra một lần (cho GitHub Actions)
+async function runOnce() {
+  console.log("Kiểm tra trạng thái server Lost Ark...");
+  await checkAndSendWebhook();
+  console.log("Hoàn thành kiểm tra.");
+}
+
+// Hàm chạy kiểm tra định kỳ (cho chạy local)
 async function startMonitoring() {
   console.log("Bắt đầu theo dõi trạng thái server Lost Ark...");
   
@@ -237,9 +244,18 @@ function resetWebhookData() {
 }
 
 // Export functions để có thể sử dụng từ bên ngoài
-export { startMonitoring, resetWebhookData, sendWebhook };
+export { startMonitoring, runOnce, resetWebhookData, sendWebhook };
 
 // Chạy nếu file được execute trực tiếp
 if (import.meta.url === `file://${process.argv[1]}`) {
-  startMonitoring();
+  // Kiểm tra argument để quyết định chế độ chạy
+  const args = process.argv.slice(2);
+  
+  if (args.includes('--once') || process.env.GITHUB_ACTIONS) {
+    // Chạy một lần cho GitHub Actions hoặc khi có flag --once
+    runOnce();
+  } else {
+    // Chạy định kỳ cho local development
+    startMonitoring();
+  }
 }
