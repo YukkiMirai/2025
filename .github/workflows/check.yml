@@ -18,3 +18,4 @@ jobs:
         env:
           GIST_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
           GIST_ID: ${{ secrets.GIST_ID }}
+          DISCO_HOOK: ${{ secrets.SERVER_STATUS_DISCOHOOK }}
