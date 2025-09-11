@@ -3,7 +3,7 @@ import { JSDOM } from "jsdom";
 import fs from "fs";
 import path from "path";
 
-const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1415280563518050314/oAtN8xs9rqrLp4csUy0_qB4RaaG59VPJb9MH77ckPQVCuwoaoOkNfl6kortJ_64Bn_lQ";
+const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK; // ⚠️ Đổi từ GITHUB_TOKEN thành DISCORD_WEBHOOK
 const STATUS_URL = "https://www.playlostark.com/en-gb/support/server-status";
 const DATA_FILE = "webhook_data.json";
 
