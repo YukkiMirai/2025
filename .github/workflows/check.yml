@@ -1,17 +1,20 @@
-name: Lost Ark Server Check v1
- 
+name: Lost Ark Server Check
+
 on:
   schedule:
-    - cron: "*/5 * * * 3" # chạy mỗi 5 phút vào thứ 4
-  workflow_dispatch: # cho phép chạy thủ công
+    - cron: "*/5 * * * *" # Mỗi 5 phút
+  workflow_dispatch: # Cho phép chạy thủ công
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
       - run: npm install
       - run: node check.js --once
+        env:
+          GIST_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+          GIST_ID: ${{ secrets.GIST_ID }}
