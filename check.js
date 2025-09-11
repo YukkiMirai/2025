@@ -128,7 +128,9 @@ async function writeWebhookData(data) {
 // Hàm kiểm tra webhook có hết hạn không (1 ngày)
 async function isWebhookDataExpired() {
   const data = await readWebhookData();
-  if (!data.webhookTime) return true;
+  
+  // Nếu không có webhookTime thì chưa hết hạn (chưa từng gửi webhook)
+  if (!data.webhookTime) return false;
   
   const savedTime = new Date(data.webhookTime);
   const currentTime = new Date();
@@ -300,12 +302,33 @@ async function checkAndSendWebhook() {
   // 1. Trạng thái thay đổi từ (offline/maintenance) sang online
   // 2. Chưa gửi webhook trong ngày
   // 3. Không đang xử lý
+  console.log("=== KIỂM TRA ĐIỀU KIỆN GỬI WEBHOOK ===");
+  console.log("- Server hiện tại online?", currentStatus === "Brelshaza is online");
+  console.log("- Trạng thái ban đầu khác online?", initialStatus !== "Brelshaza is online");
+  console.log("- Chưa gửi webhook trong ngày?", !hasSentWebhook);
+  console.log("- Không đang xử lý?", !isProcessing);
+  
   if (currentStatus === "Brelshaza is online" && 
       initialStatus !== "Brelshaza is online" && 
       !hasSentWebhook && 
       !isProcessing) {
+    console.log("✅ TẤT CẢ ĐIỀU KIỆN ĐÃ THỎA MÃN - GỬI WEBHOOK!");
     console.log("Phát hiện server chuyển từ", initialStatus, "sang online!");
     await sendWebhook(false);
+  } else {
+    console.log("❌ KHÔNG GỬI WEBHOOK - Lý do:");
+    if (currentStatus !== "Brelshaza is online") {
+      console.log("  → Server chưa online");
+    }
+    if (initialStatus === "Brelshaza is online") {
+      console.log("  → Server đã online từ đầu (không có sự chuyển đổi)");
+    }
+    if (hasSentWebhook) {
+      console.log("  → Đã gửi webhook trong ngày rồi");
+    }
+    if (isProcessing) {
+      console.log("  → Đang xử lý webhook khác");
+    }
   }
   
   // Reset initialStatus nếu server hiện tại không online (offline/maintenance)
