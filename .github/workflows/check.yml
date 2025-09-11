@@ -18,4 +18,4 @@ jobs:
         env:
           GIST_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
           GIST_ID: ${{ secrets.GIST_ID }}
-          DISCO_HOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
