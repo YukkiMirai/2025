@@ -255,13 +255,13 @@ async function getServerStatus() {
 async function checkAndSendWebhook() {
   // Khởi tạo từ file nếu chưa có
   if (initialStatus === null) {
-    initializeFromFile();
+    await initializeFromFile();
   }
   
   // Kiểm tra dữ liệu có hết hạn không (sau khi đã khởi tạo từ file)
-  if (isWebhookDataExpired()) {
+  if (await isWebhookDataExpired()) {
     console.log("Dữ liệu webhook đã hết hạn, reset toàn bộ");
-    writeWebhookData({
+    await writeWebhookData({
       webhookSent: false,
       webhookTime: null,
       initialStatus: null,
@@ -272,7 +272,7 @@ async function checkAndSendWebhook() {
   }
   
   // Đọc dữ liệu từ file
-  const data = readWebhookData();
+  const data = await readWebhookData();
   const hasSentWebhook = data.webhookSent === true;
   
   // Lấy trạng thái server hiện tại
@@ -293,7 +293,7 @@ async function checkAndSendWebhook() {
     console.log("Lưu trạng thái ban đầu mới:", initialStatus, "- Thời gian:", new Date(statusTime).toLocaleString('vi-VN'));
     
     // Lưu vào file
-    writeWebhookData({
+    await writeWebhookData({
       ...data,
       initialStatus: initialStatus,
       initialStatusTime: statusTime
@@ -347,7 +347,7 @@ async function checkAndSendWebhook() {
     initialStatus = currentStatus;
     
     // Cập nhật vào file (nhưng không reset webhook đã gửi)
-    writeWebhookData({
+    await writeWebhookData({
       ...data,
       initialStatus: initialStatus,
       initialStatusTime: statusTime
