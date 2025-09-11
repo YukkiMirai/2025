@@ -6,7 +6,7 @@ on:
     - cron: "0,5,10,15,20,25,30,35,40,45,50,55 * * * 3"
     
     # Các ngày khác - mỗi 15 phút  
-    - cron: "0,15,30,45 * * * 0,1,2,4,5,6"
+    - cron: "0,10,20,30,40,50 * * * 0,1,2,4,5,6"
   workflow_dispatch: # Cho phép chạy thủ công
 
 jobs:
