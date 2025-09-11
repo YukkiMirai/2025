@@ -3,7 +3,7 @@ import { JSDOM } from "jsdom";
 import fs from "fs";
 import path from "path";
 
-const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK; // ⚠️ Đổi từ GITHUB_TOKEN thành DISCORD_WEBHOOK
+const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK || "https://discord.com/api/webhooks/1415280563518050314/oAtN8xs9rqrLp4csUy0_qB4RaaG59VPJb9MH77ckPQVCuwoaoOkNfl6kortJ_64Bn_lQ"; // ⚠️ Đổi từ GITHUB_TOKEN thành DISCORD_WEBHOOK
 const STATUS_URL = "https://www.playlostark.com/en-gb/support/server-status";
 const DATA_FILE = "webhook_data.json";
 
@@ -47,7 +47,7 @@ async function initializeFromFile() {
 
 // Hàm đọc dữ liệu từ file hoặc Gist
 async function readWebhookData() {
-  let result = { webhookSent: false, webhookTime: null, initialStatus: null, initialStatusTime: null };
+  let result = { initialStatus: null, initialStatusTime: null };
   
   // Nếu đang chạy trong GitHub Actions, dùng Gist
   if (process.env.GITHUB_ACTIONS && GITHUB_TOKEN && GIST_ID) {
@@ -133,20 +133,6 @@ async function writeWebhookData(data) {
   }
 }
 
-// Hàm kiểm tra webhook có hết hạn không (1 ngày)
-async function isWebhookDataExpired() {
-  const data = await readWebhookData();
-  
-  // Nếu không có webhookTime thì chưa hết hạn (chưa từng gửi webhook)
-  if (!data.webhookTime) return false;
-  
-  const savedTime = new Date(data.webhookTime);
-  const currentTime = new Date();
-  const diffHours = (currentTime - savedTime) / (1000 * 60 * 60);
-  
-  return diffHours >= 24; // 24 giờ = 1 ngày
-}
-
 // Hàm gửi webhook
 async function sendWebhook(isManual = false) {
   if (isProcessing) return;
@@ -163,25 +149,11 @@ async function sendWebhook(isManual = false) {
 
     if (response.ok) {
       console.log("Webhook đã gửi thành công! Status:", response.status);
-      
-      // Lưu trạng thái đã gửi vào file
-      const existingData = await readWebhookData();
-      await writeWebhookData({
-        ...existingData,
-        webhookSent: true,
-        webhookTime: new Date().toISOString()
-      });
     } else {
       throw new Error(`HTTP Error: ${response.status}`);
     }
   } catch (error) {
     console.error("Lỗi khi gửi webhook:", error.message);
-    
-    // Nếu lỗi thì xóa flag để có thể thử lại
-    await writeWebhookData({
-      webhookSent: false,
-      webhookTime: null
-    });
   } finally {
     isProcessing = false;
   }
@@ -258,22 +230,8 @@ async function checkAndSendWebhook() {
     await initializeFromFile();
   }
   
-  // Kiểm tra dữ liệu có hết hạn không (sau khi đã khởi tạo từ file)
-  if (await isWebhookDataExpired()) {
-    console.log("Dữ liệu webhook đã hết hạn, reset toàn bộ");
-    await writeWebhookData({
-      webhookSent: false,
-      webhookTime: null,
-      initialStatus: null,
-      initialStatusTime: null
-    });
-    // Reset initialStatus khi data hết hạn
-    initialStatus = null;
-  }
-  
   // Đọc dữ liệu từ file
   const data = await readWebhookData();
-  const hasSentWebhook = data.webhookSent === true;
   
   // Lấy trạng thái server hiện tại
   const currentStatus = await getServerStatus();
@@ -294,7 +252,6 @@ async function checkAndSendWebhook() {
     
     // Lưu vào file
     await writeWebhookData({
-      ...data,
       initialStatus: initialStatus,
       initialStatusTime: statusTime
     });
@@ -306,19 +263,15 @@ async function checkAndSendWebhook() {
     }
   }
   
-  // Chỉ gửi webhook khi:
-  // 1. Trạng thái thay đổi từ (offline/maintenance) sang online
-  // 2. Chưa gửi webhook trong ngày
-  // 3. Không đang xử lý
+  // ✅ LOGIC MỚI ĐƠN GIẢN: 
+  // Chỉ gửi webhook khi server chuyển từ (offline/maintenance) sang online
   console.log("=== KIỂM TRA ĐIỀU KIỆN GỬI WEBHOOK ===");
   console.log("- Server hiện tại online?", currentStatus === "Brelshaza is online");
   console.log("- Trạng thái ban đầu khác online?", initialStatus !== "Brelshaza is online");
-  console.log("- Chưa gửi webhook trong ngày?", !hasSentWebhook);
   console.log("- Không đang xử lý?", !isProcessing);
   
   if (currentStatus === "Brelshaza is online" && 
       initialStatus !== "Brelshaza is online" && 
-      !hasSentWebhook && 
       !isProcessing) {
     console.log("✅ TẤT CẢ ĐIỀU KIỆN ĐÃ THỎA MÃN - GỬI WEBHOOK!");
     console.log("Phát hiện server chuyển từ", initialStatus, "sang online!");
@@ -330,9 +283,6 @@ async function checkAndSendWebhook() {
     }
     if (initialStatus === "Brelshaza is online") {
       console.log("  → Server đã online từ đầu (không có sự chuyển đổi)");
-    }
-    if (hasSentWebhook) {
-      console.log("  → Đã gửi webhook trong ngày rồi");
     }
     if (isProcessing) {
       console.log("  → Đang xử lý webhook khác");
@@ -346,9 +296,8 @@ async function checkAndSendWebhook() {
     console.log("Server chuyển từ online sang", currentStatus, "- reset trạng thái ban đầu - Thời gian:", new Date(statusTime).toLocaleString('vi-VN'));
     initialStatus = currentStatus;
     
-    // Cập nhật vào file (nhưng không reset webhook đã gửi)
+    // Cập nhật vào file
     await writeWebhookData({
-      ...data,
       initialStatus: initialStatus,
       initialStatusTime: statusTime
     });
@@ -371,12 +320,8 @@ async function startMonitoring() {
   
   // Thiết lập kiểm tra định kỳ mỗi 30 giây
   setInterval(async () => {
-    const data = readWebhookData();
-    const hasSentWebhook = data.webhookSent === true;
-    const isExpired = isWebhookDataExpired();
-    
-    // Chỉ kiểm tra nếu chưa gửi webhook hoặc webhook đã hết hạn
-    if (!isProcessing && (!hasSentWebhook || isExpired)) {
+    // Chỉ kiểm tra nếu không đang xử lý
+    if (!isProcessing) {
       await checkAndSendWebhook();
     }
   }, 30000); // 30 giây
@@ -385,8 +330,6 @@ async function startMonitoring() {
 // Hàm reset để test
 function resetWebhookData() {
   writeWebhookData({
-    webhookSent: false,
-    webhookTime: null,
     initialStatus: null,
     initialStatusTime: null
   });
