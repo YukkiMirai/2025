@@ -7,6 +7,11 @@ const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1415280563518050314/oA
 const STATUS_URL = "https://www.playlostark.com/en-gb/support/server-status";
 const DATA_FILE = "webhook_data.json";
 
+// GitHub Gist config (cho GitHub Actions) - CHỈ DÙNG SECRETS!
+const GITHUB_TOKEN = process.env.GIST_TOKEN; // ⚠️ Đổi từ GITHUB_TOKEN thành GIST_TOKEN
+const GIST_ID = process.env.GIST_ID; // ⚠️ PHẢI từ GitHub Secrets
+// ❌ KHÔNG BAO GIỜ hardcode token vào code!
+
 // Payload Discord webhook
 const payload = {
   "username": "Đội trưởng chó!",
@@ -26,17 +31,46 @@ let isProcessing = false;
 let initialStatus = null;
 
 // Khởi tạo initialStatus từ file khi script bắt đầu
-function initializeFromFile() {
-  const data = readWebhookData();
+async function initializeFromFile() {
+  console.log("DEBUG: Đang thử khởi tạo từ file...");
+  const data = await readWebhookData();
+  console.log("DEBUG: Dữ liệu đọc từ file:", JSON.stringify(data, null, 2));
+  
   if (data.initialStatus) {
     initialStatus = data.initialStatus;
     const statusTime = data.initialStatusTime ? new Date(data.initialStatusTime).toLocaleString('vi-VN') : 'không rõ';
     console.log("Khởi tạo trạng thái ban đầu từ file:", initialStatus, "- Thời gian:", statusTime);
+  } else {
+    console.log("DEBUG: Không có initialStatus trong file");
   }
 }
 
-// Hàm đọc dữ liệu từ file
-function readWebhookData() {
+// Hàm đọc dữ liệu từ file hoặc Gist
+async function readWebhookData() {
+  // Nếu đang chạy trong GitHub Actions, dùng Gist
+  if (process.env.GITHUB_ACTIONS && GITHUB_TOKEN && GIST_ID) {
+    try {
+      console.log("DEBUG: Đọc dữ liệu từ GitHub Gist...");
+      const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+        headers: {
+          'Authorization': `token ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+      
+      if (response.ok) {
+        const gist = await response.json();
+        const fileContent = gist.files['webhook_data.json']?.content;
+        if (fileContent) {
+          return JSON.parse(fileContent);
+        }
+      }
+    } catch (error) {
+      console.log("Lỗi khi đọc từ Gist:", error.message);
+    }
+  }
+  
+  // Fallback: đọc từ file local
   try {
     if (fs.existsSync(DATA_FILE)) {
       const data = fs.readFileSync(DATA_FILE, 'utf8');
@@ -45,21 +79,55 @@ function readWebhookData() {
   } catch (error) {
     console.log("Lỗi khi đọc file dữ liệu:", error.message);
   }
+  
   return { webhookSent: false, webhookTime: null, initialStatus: null, initialStatusTime: null };
 }
 
-// Hàm ghi dữ liệu vào file
-function writeWebhookData(data) {
+// Hàm ghi dữ liệu vào file hoặc Gist
+async function writeWebhookData(data) {
+  // Nếu đang chạy trong GitHub Actions, ghi vào Gist
+  if (process.env.GITHUB_ACTIONS && GITHUB_TOKEN && GIST_ID) {
+    try {
+      console.log("DEBUG: Ghi dữ liệu vào GitHub Gist...");
+      const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `token ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          files: {
+            'webhook_data.json': {
+              content: JSON.stringify(data, null, 2)
+            }
+          }
+        })
+      });
+      
+      if (response.ok) {
+        console.log("DEBUG: Đã ghi thành công vào Gist");
+        return;
+      } else {
+        console.log("DEBUG: Lỗi ghi Gist:", response.status);
+      }
+    } catch (error) {
+      console.log("Lỗi khi ghi vào Gist:", error.message);
+    }
+  }
+  
+  // Fallback: ghi vào file local
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    console.log("DEBUG: Đã ghi vào file local");
   } catch (error) {
     console.log("Lỗi khi ghi file dữ liệu:", error.message);
   }
 }
 
 // Hàm kiểm tra webhook có hết hạn không (1 ngày)
-function isWebhookDataExpired() {
-  const data = readWebhookData();
+async function isWebhookDataExpired() {
+  const data = await readWebhookData();
   if (!data.webhookTime) return true;
   
   const savedTime = new Date(data.webhookTime);
@@ -87,8 +155,8 @@ async function sendWebhook(isManual = false) {
       console.log("Webhook đã gửi thành công! Status:", response.status);
       
       // Lưu trạng thái đã gửi vào file
-      const existingData = readWebhookData();
-      writeWebhookData({
+      const existingData = await readWebhookData();
+      await writeWebhookData({
         ...existingData,
         webhookSent: true,
         webhookTime: new Date().toISOString()
@@ -100,7 +168,7 @@ async function sendWebhook(isManual = false) {
     console.error("Lỗi khi gửi webhook:", error.message);
     
     // Nếu lỗi thì xóa flag để có thể thử lại
-    writeWebhookData({
+    await writeWebhookData({
       webhookSent: false,
       webhookTime: null
     });
@@ -180,8 +248,9 @@ async function checkAndSendWebhook() {
     initializeFromFile();
   }
   
-  // Kiểm tra dữ liệu có hết hạn không
+  // Kiểm tra dữ liệu có hết hạn không (sau khi đã khởi tạo từ file)
   if (isWebhookDataExpired()) {
+    console.log("Dữ liệu webhook đã hết hạn, reset toàn bộ");
     writeWebhookData({
       webhookSent: false,
       webhookTime: null,
