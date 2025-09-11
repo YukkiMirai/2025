@@ -16,7 +16,7 @@ const GIST_ID = process.env.GIST_ID; // ⚠️ PHẢI từ GitHub Secrets
 const payload = {
   "username": "Đội trưởng chó!",
   "avatar_url": "https://i.imgur.com/AfFp7pu.png",
-  "content": "Thông báo! <@&1141669486697644032>",
+  "content": "Thông báo! <@&1415372170326179990>",
   "embeds": [
     {
       "title": "Thông báo",
