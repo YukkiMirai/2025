@@ -47,7 +47,7 @@ async function initializeFromFile() {
 
 // Hàm đọc dữ liệu từ file hoặc Gist
 async function readWebhookData() {
-  let result = { initialStatus: null, initialStatusTime: null };
+  let result = { initialStatus: null, initialStatusTime: null, lastWebhookSent: null };
   
   // Nếu đang chạy trong GitHub Actions, dùng Gist
   if (process.env.GITHUB_ACTIONS && GITHUB_TOKEN && GIST_ID) {
@@ -149,6 +149,19 @@ async function sendWebhook(isManual = false) {
 
     if (response.ok) {
       console.log("Webhook đã gửi thành công! Status:", response.status);
+      
+      // ✅ CẬP NHẬT GIST SAU KHI GỬI WEBHOOK THÀNH CÔNG
+      // Reset initialStatus về trạng thái hiện tại (online) để chuẩn bị cho lần maintenance tiếp theo
+      const currentTime = new Date().toISOString();
+      initialStatus = "Brelshaza is online";
+      
+      console.log("Cập nhật Gist sau khi gửi webhook thành công...");
+      await writeWebhookData({
+        initialStatus: initialStatus,
+        initialStatusTime: currentTime,
+        lastWebhookSent: currentTime
+      });
+      
     } else {
       throw new Error(`HTTP Error: ${response.status}`);
     }
@@ -331,7 +344,8 @@ async function startMonitoring() {
 function resetWebhookData() {
   writeWebhookData({
     initialStatus: null,
-    initialStatusTime: null
+    initialStatusTime: null,
+    lastWebhookSent: null
   });
   initialStatus = null;
   console.log("Đã reset dữ liệu webhook");
