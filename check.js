@@ -47,7 +47,7 @@ async function initializeFromFile() {
 
 // Hàm đọc dữ liệu từ file hoặc Gist
 async function readWebhookData() {
-  let result = { initialStatus: null, initialStatusTime: null, lastWebhookSent: null };
+  let result = { initialStatus: null, initialStatusTime: null, lastWebhookSent: null, lastCheckTime: null };
   
   // Nếu đang chạy trong GitHub Actions, dùng Gist
   if (process.env.GITHUB_ACTIONS && GITHUB_TOKEN && GIST_ID) {
@@ -159,7 +159,8 @@ async function sendWebhook(isManual = false) {
       await writeWebhookData({
         initialStatus: initialStatus,
         initialStatusTime: currentTime,
-        lastWebhookSent: currentTime
+        lastWebhookSent: currentTime,
+        lastCheckTime: currentTime
       });
       
     } else {
@@ -266,7 +267,8 @@ async function checkAndSendWebhook() {
     // Lưu vào file
     await writeWebhookData({
       initialStatus: initialStatus,
-      initialStatusTime: statusTime
+      initialStatusTime: statusTime,
+      lastCheckTime: statusTime
     });
     
     // Nếu ban đầu đã online thì không gửi webhook
@@ -312,9 +314,19 @@ async function checkAndSendWebhook() {
     // Cập nhật vào file
     await writeWebhookData({
       initialStatus: initialStatus,
-      initialStatusTime: statusTime
+      initialStatusTime: statusTime,
+      lastCheckTime: statusTime
     });
   }
+  
+  // ✅ LUÔN CẬP NHẬT THỜI GIAN KIỂM TRA CUỐI CÙNG VÀO GIST
+  const currentTime = new Date().toISOString();
+  console.log("Cập nhật thời gian kiểm tra cuối cùng vào Gist:", new Date(currentTime).toLocaleString('vi-VN'));
+  await writeWebhookData({
+    ...data,
+    initialStatus: initialStatus,
+    lastCheckTime: currentTime
+  });
 }
 
 // Hàm chạy kiểm tra một lần (cho GitHub Actions)
@@ -345,7 +357,8 @@ function resetWebhookData() {
   writeWebhookData({
     initialStatus: null,
     initialStatusTime: null,
-    lastWebhookSent: null
+    lastWebhookSent: null,
+    lastCheckTime: null
   });
   initialStatus = null;
   console.log("Đã reset dữ liệu webhook");
