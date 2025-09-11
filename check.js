@@ -47,6 +47,8 @@ async function initializeFromFile() {
 
 // Hàm đọc dữ liệu từ file hoặc Gist
 async function readWebhookData() {
+  let result = { webhookSent: false, webhookTime: null, initialStatus: null, initialStatusTime: null };
+  
   // Nếu đang chạy trong GitHub Actions, dùng Gist
   if (process.env.GITHUB_ACTIONS && GITHUB_TOKEN && GIST_ID) {
     try {
@@ -62,7 +64,10 @@ async function readWebhookData() {
         const gist = await response.json();
         const fileContent = gist.files['webhook_data.json']?.content;
         if (fileContent) {
-          return JSON.parse(fileContent);
+          const gistData = JSON.parse(fileContent);
+          // Merge với default values để đảm bảo có đủ fields
+          result = { ...result, ...gistData };
+          return result;
         }
       }
     } catch (error) {
@@ -74,13 +79,16 @@ async function readWebhookData() {
   try {
     if (fs.existsSync(DATA_FILE)) {
       const data = fs.readFileSync(DATA_FILE, 'utf8');
-      return JSON.parse(data);
+      const fileData = JSON.parse(data);
+      // Merge với default values để đảm bảo có đủ fields
+      result = { ...result, ...fileData };
+      return result;
     }
   } catch (error) {
     console.log("Lỗi khi đọc file dữ liệu:", error.message);
   }
   
-  return { webhookSent: false, webhookTime: null, initialStatus: null, initialStatusTime: null };
+  return result;
 }
 
 // Hàm ghi dữ liệu vào file hoặc Gist
