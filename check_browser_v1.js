@@ -73,6 +73,10 @@ async function getServerStatus() {
   if (!lastRefresh || (now - parseInt(lastRefresh)) > CONFIG.CHECK_INTERVAL) { 
     console.log("🔄 Refresh trang để lấy dữ liệu server mới...");
     localStorage.setItem('lastPageRefresh', now.toString());
+    
+    // Set title để báo hiệu đang refresh
+    document.title = "Đang refresh...";
+    
     setTimeout(() => {
       window.location.reload();
     }, 1000);
@@ -122,6 +126,13 @@ async function getServerStatus() {
 async function checkAndSendWebhook() {
   const currentTime = new Date().toLocaleTimeString('vi-VN');
   console.log(`🔄 Đang kiểm tra server... [${currentTime}]`);
+  
+  // Kiểm tra nếu đang trong trạng thái refresh
+  if (document.title.includes("Đang refresh")) {
+    console.log("⏳ Trang đang refresh, bỏ qua lần check này");
+    return;
+  }
+  
   const data = readStorageData();
   let {initialStatus} = data;
   const currentStatus = await getServerStatus();
