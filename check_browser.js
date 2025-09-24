@@ -86,11 +86,13 @@ async function getServerStatus() {
 }
 
 async function checkAndSendWebhook() {
+  console.log("🔄 Đang kiểm tra server...");
   const data = readStorageData();
   let {initialStatus} = data;
   const currentStatus = await getServerStatus();
   
   if (!currentStatus) return;
+  console.log(`📊 Status: ${currentStatus} | Saved: ${initialStatus || 'none'}`);
   
   if (!initialStatus) {
     initialStatus = currentStatus;
@@ -117,12 +119,14 @@ async function checkAndSendWebhook() {
 }
 
 async function startMonitoring() {
+  console.log("🚀 Lost Ark Monitor khởi động...");
   await loadJQuery();
   await checkAndSendWebhook();
   if (monitoringInterval) clearInterval(monitoringInterval);
   monitoringInterval = setInterval(async () => {
     if (!isProcessing) await checkAndSendWebhook();
   }, CONFIG.CHECK_INTERVAL);
+  console.log("✅ Monitor đang chạy (30s interval)");
 }
 
 startMonitoring();
