@@ -6,7 +6,7 @@ const CONFIG = {
 };
 
 const WEBHOOK_PAYLOAD = {
-  username: "Đội trưởng chó!",
+  username: "Đội trưởng chó chrome!",
   avatar_url: "https://i.imgur.com/AfFp7pu.png",
   content: "Thông báo! <@&1415372170326179990>",
   embeds: [{title: "Thông báo", description: "Brelshaza is online 🎉", color: 15258703}]
@@ -85,38 +85,19 @@ async function getServerStatus() {
   
   console.log("🔍 Đọc trạng thái server từ DOM...");
   
-  // Tìm tất cả text chứa Brelshaza
+  // Chỉ tìm elements có aria-label chứa Brelshaza
   const allElements = document.querySelectorAll('*');
   for (const element of allElements) {
-    const text = (element.textContent || '').toLowerCase();
-    if (text.includes('brelshaza')) {
-      console.log("� Tìm thấy:", element.textContent.substring(0, 150));
+    const ariaLabel = (element.getAttribute('aria-label') || '').toLowerCase();
+    if (ariaLabel.includes('brelshaza')) {
+      console.log("🏷️ Tìm thấy aria-label:", ariaLabel);
       
-      // Check các trạng thái có thể
-      if (text.includes('online')) return "Brelshaza is online";
-      if (text.includes('offline')) return "Brelshaza is offline";  
-      if (text.includes('maintenance') || text.includes('maint')) return "Brelshaza is maintenance";
-      if (text.includes('good') || text.includes('operational')) return "Brelshaza is online";
-      if (text.includes('down') || text.includes('unavailable')) return "Brelshaza is offline";
-    }
-  }
-  
-  // Tìm theo các class/selector có thể có
-  const selectors = [
-    '[class*="server"]', '[class*="status"]', '[data-server*="brelshaza"]',
-    '.server-status', '.status', '[aria-label*="brelshaza"]'
-  ];
-  
-  for (const selector of selectors) {
-    const elements = document.querySelectorAll(selector);
-    for (const el of elements) {
-      const text = (el.textContent || el.getAttribute('aria-label') || '').toLowerCase();
-      if (text.includes('brelshaza')) {
-        console.log("� Selector tìm thấy:", text.substring(0, 100));
-        if (text.includes('online') || el.classList.contains('online')) return "Brelshaza is online";
-        if (text.includes('offline') || el.classList.contains('offline')) return "Brelshaza is offline";
-        if (text.includes('maintenance') || el.classList.contains('maintenance')) return "Brelshaza is maintenance";
-      }
+      // Check status từ aria-label
+      if (ariaLabel.includes('online')) return "Brelshaza is online";
+      if (ariaLabel.includes('offline')) return "Brelshaza is offline";  
+      if (ariaLabel.includes('maintenance') || ariaLabel.includes('maint')) return "Brelshaza is maintenance";
+      if (ariaLabel.includes('good') || ariaLabel.includes('operational')) return "Brelshaza is online";
+      if (ariaLabel.includes('down') || ariaLabel.includes('unavailable')) return "Brelshaza is offline";
     }
   }
   
