@@ -126,33 +126,33 @@ async function checkAndSendWebhook() {
   let {initialStatus} = data;
   const currentStatus = await getServerStatus();
   
-  // Fix: Nếu không lấy được status thì set thành unknown
   const finalStatus = currentStatus || "Brelshaza status unknown";
   console.log(`📊 Status: ${finalStatus} | Saved: ${initialStatus || 'none'}`);
   
-  // Luôn update lastCheckTime mỗi lần check
   const t = new Date().toISOString();
-  data.lastCheckTime = t;
   
+  // 1. Nếu chưa có trạng thái ban đầu, lưu trạng thái hiện tại
   if (!initialStatus) {
-    initialStatus = finalStatus;
-    data.initialStatus = initialStatus;
+    data.initialStatus = finalStatus;
     data.initialStatusTime = t;
+    data.lastCheckTime = t;
     writeStorageData(data);
-    if (initialStatus === "Brelshaza is online") return;
+    console.log(`💾 Lưu trạng thái ban đầu: ${finalStatus}`);
+    return;
   }
   
+  // 2. Kiểm tra điều kiện gửi webhook: từ không online → online
   if (finalStatus === "Brelshaza is online" && initialStatus !== "Brelshaza is online" && !isProcessing) {
+    console.log(`🎉 Phát hiện chuyển đổi: ${initialStatus} → ${finalStatus} - Gửi webhook!`);
     await sendWebhook();
   }
   
-  if (finalStatus !== "Brelshaza is online" && initialStatus === "Brelshaza is online") {
-    data.initialStatus = finalStatus;
-    data.initialStatusTime = t;
-    writeStorageData(data);
-  } else {
-    writeStorageData(data);
-  }
+  // 3. Luôn cập nhật trạng thái mới nhất và thời gian check vào storage
+  data.initialStatus = finalStatus;
+  data.initialStatusTime = t;
+  data.lastCheckTime = t;
+  writeStorageData(data);
+  console.log(`💾 Cập nhật storage: ${finalStatus}`);
 }
 
 async function startMonitoring() {
