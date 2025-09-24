@@ -126,6 +126,12 @@ async function checkAndSendWebhook() {
   let {initialStatus} = data;
   const currentStatus = await getServerStatus();
   
+  // Skip nếu đang refresh trang
+  if (currentStatus === "Page refreshing...") {
+    console.log("⏳ Trang đang refresh, bỏ qua lần check này");
+    return;
+  }
+  
   const finalStatus = currentStatus || "Brelshaza status unknown";
   console.log(`📊 Status: ${finalStatus} | Saved: ${initialStatus || 'none'}`);
   
