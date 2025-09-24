@@ -68,19 +68,39 @@ async function sendWebhook() {
 
 async function getServerStatus() {
   try {
-    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(CONFIG.STATUS_URL)}`);
-    if (!res.ok) return null;
+    // Thử nhiều proxy khác nhau
+    const proxies = [
+      `https://cors-anywhere.herokuapp.com/${CONFIG.STATUS_URL}`,
+      `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(CONFIG.STATUS_URL)}`,
+      `https://corsproxy.io/?${encodeURIComponent(CONFIG.STATUS_URL)}`
+    ];
     
-    const data = await res.json();
-    const html = data.contents;
-    
-    if (html.includes('Brelshaza is online')) return "Brelshaza is online";
-    if (html.includes('Brelshaza is offline')) return "Brelshaza is offline";
-    if (html.includes('Brelshaza is maintenance')) return "Brelshaza is maintenance";
-    if (html.includes('Brelshaza')) return "Brelshaza status unknown";
+    for (let proxyUrl of proxies) {
+      try {
+        const res = await fetch(proxyUrl, {
+          headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+        
+        if (res.ok) {
+          const html = await res.text();
+          
+          if (html.includes('Brelshaza is online')) return "Brelshaza is online";
+          if (html.includes('Brelshaza is offline')) return "Brelshaza is offline";
+          if (html.includes('Brelshaza is maintenance')) return "Brelshaza is maintenance";
+          if (html.includes('Brelshaza')) return "Brelshaza status detected";
+          
+          // Nếu có response nhưng không tìm thấy Brelshaza
+          console.log("⚠️ Response received but no Brelshaza found");
+          break;
+        }
+      } catch (e) {
+        console.log(`❌ Proxy failed: ${proxyUrl.substring(0, 30)}...`);
+      }
+    }
     
     return null;
   } catch (e) {
+    console.log("❌ All proxies failed");
     return null;
   }
 }
@@ -120,11 +140,17 @@ async function checkAndSendWebhook() {
 }
 
 async function startMonitoring() {
+  // Dừng interval cũ nếu có
+  if (typeof window.lostArkInterval !== 'undefined') {
+    clearInterval(window.lostArkInterval);
+    console.log("⏹️ Đã dừng monitor cũ");
+  }
+  
   console.log("🚀 Lost Ark Monitor khởi động...");
   await loadJQuery();
   await checkAndSendWebhook();
-  if (monitoringInterval) clearInterval(monitoringInterval);
-  monitoringInterval = setInterval(async () => {
+  
+  window.lostArkInterval = setInterval(async () => {
     if (!isProcessing) await checkAndSendWebhook();
   }, CONFIG.CHECK_INTERVAL);
   console.log("✅ Monitor đang chạy (30s interval)");
